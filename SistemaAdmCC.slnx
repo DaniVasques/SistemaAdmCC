@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="AdmCC.Api/AdmCC.Api.csproj" />
+  <Project Path="AdmCC.Domain/AdmCC.Domain.csproj" />
+  <Project Path="AdmCC.InfraData/AdmCC.InfraData.csproj" />
+  <Project Path="UsuarioAdmCC.Api/UsuarioAdmCC.Api.csproj" />
+  <Project Path="UsuarioAdmCC.Domain/UsuarioAdmCC.Domain.csproj" />
+  <Project Path="UsuarioAdmCC.InfraData/UsuarioAdmCC.InfraData.csproj" />
+</Solution>

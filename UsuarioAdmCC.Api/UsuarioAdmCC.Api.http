@@ -1,0 +1,6 @@
+@UsuarioAdmCC.Api_HostAddress = http://localhost:5285
+
+GET {{UsuarioAdmCC.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
