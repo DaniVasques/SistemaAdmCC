@@ -26,6 +26,13 @@ namespace AdmCC.InfraData.Repositories
                 .FirstOrDefaultAsync(x => x.AssociadoId == associadoId, cancellationToken);
         }
 
+        public async Task<IReadOnlyCollection<SeguroAssociado>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await BuildSeguroQuery(trackChanges: false)
+                .OrderByDescending(x => x.DataCadastro)
+                .ToListAsync(cancellationToken);
+        }
+
         public Task AddAsync(SeguroAssociado seguroAssociado, CancellationToken cancellationToken = default)
         {
             return _context.SegurosAssociados.AddAsync(seguroAssociado, cancellationToken).AsTask();
@@ -35,6 +42,19 @@ namespace AdmCC.InfraData.Repositories
         {
             _context.SegurosAssociados.Update(seguroAssociado);
             return Task.CompletedTask;
+        }
+
+        public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var seguro = await _context.SegurosAssociados
+                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+            if (seguro is null)
+            {
+                return;
+            }
+
+            _context.SegurosAssociados.Remove(seguro);
         }
 
         private IQueryable<SeguroAssociado> BuildSeguroQuery(bool trackChanges)

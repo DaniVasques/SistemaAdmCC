@@ -4,6 +4,7 @@ using AdmCC.Domain.RelatoriosAuditorias.Interfaces;
 
 namespace AdmCC.InfraData.Services
 {
+    // Neste momento o escopo publico do modulo cobre apenas o catalogo de cargos.
     public class CargosLiderancasService
     {
         private readonly ICargoLiderancaRepository _cargoLiderancaRepository;

@@ -3,6 +3,7 @@ using AdmCC.Domain.RelatoriosAuditorias.Interfaces;
 
 namespace AdmCC.InfraData.Services
 {
+    // Escopo atual do modulo restrito a auditoria/logs.
     public class RelatoriosAuditoriasService
     {
         private readonly ILogAuditoriaRepository _logAuditoriaRepository;

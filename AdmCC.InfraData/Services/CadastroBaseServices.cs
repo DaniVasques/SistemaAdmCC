@@ -5,6 +5,7 @@ using AdmCC.Domain.RelatoriosAuditorias.Interfaces;
 
 namespace AdmCC.InfraData.Services
 {
+    // Empresa e endereco entram aqui como dependencias obrigatorias do agregado Associado.
     public class CadastroBaseService
     {
         private readonly IAssociadoRepository _associadoRepository;
@@ -75,11 +76,58 @@ namespace AdmCC.InfraData.Services
             var existente = await _associadoRepository.GetByIdAsync(associado.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Associado nao encontrado para atualizacao.");
 
-            await ValidarAssociadoAsync(associado, isEdicao: true, cancellationToken);
+            var associadoAtualizado = AplicarDadosAssociado(associado, existente);
 
-            associado.DataCadastro = existente.DataCadastro == default
-                ? DateTime.UtcNow
-                : existente.DataCadastro;
+            await ValidarAssociadoAsync(associadoAtualizado, isEdicao: true, cancellationToken);
+
+            await _associadoRepository.UpdateAsync(associadoAtualizado, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return associadoAtualizado;
+        }
+
+        public async Task<Associado> AlterarStatusAssociadoAsync(
+            Guid associadoId,
+            StatusAssociado novoStatus,
+            Guid usuarioResponsavelId,
+            string? motivo,
+            CancellationToken cancellationToken = default)
+        {
+            if (associadoId == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do associado deve ser informado.", nameof(associadoId));
+            }
+
+            if (usuarioResponsavelId == Guid.Empty)
+            {
+                throw new ArgumentException("O usuario responsavel pela alteracao deve ser informado.", nameof(usuarioResponsavelId));
+            }
+
+            if (!Enum.IsDefined(novoStatus))
+            {
+                throw new ArgumentException("O novo status informado e invalido.", nameof(novoStatus));
+            }
+
+            var associado = await _associadoRepository.GetByIdAsync(associadoId, cancellationToken)
+                ?? throw new KeyNotFoundException("Associado nao encontrado para alteracao de status.");
+
+            if (associado.StatusAssociado == novoStatus)
+            {
+                throw new InvalidOperationException("O associado ja se encontra no status informado.");
+            }
+
+            associado.HistoricoStatus.Add(new HistoricoAssociado
+            {
+                Id = Guid.NewGuid(),
+                AssociadoId = associado.Id,
+                StatusAnterior = associado.StatusAssociado,
+                StatusNovo = novoStatus,
+                DataAlteracao = DateTime.UtcNow,
+                Motivo = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim(),
+                UsuarioResponsavelId = usuarioResponsavelId
+            });
+
+            associado.StatusAssociado = novoStatus;
 
             await _associadoRepository.UpdateAsync(associado, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -256,6 +304,11 @@ namespace AdmCC.InfraData.Services
                 throw new InvalidOperationException("A data de ingresso do associado nao pode estar no futuro.");
             }
 
+            if (!Enum.IsDefined(associado.StatusAssociado))
+            {
+                throw new ArgumentException("O status do associado informado e invalido.", nameof(associado));
+            }
+
             if (associado.PadrinhoId == Guid.Empty)
             {
                 throw new ArgumentException("O padrinho do associado deve ser informado.", nameof(associado));
@@ -288,6 +341,29 @@ namespace AdmCC.InfraData.Services
             {
                 throw new InvalidOperationException("Ja existe um associado cadastrado com o e-mail informado.");
             }
+        }
+
+        private static Associado AplicarDadosAssociado(Associado origem, Associado destino)
+        {
+            destino.NomeCompleto = origem.NomeCompleto;
+            destino.Cpf = origem.Cpf;
+            destino.DataNascimento = origem.DataNascimento;
+            destino.PermitirExibirAniversario = origem.PermitirExibirAniversario;
+            destino.EmailPrincipal = origem.EmailPrincipal;
+            destino.TelefoneWhatsappPrincipal = origem.TelefoneWhatsappPrincipal;
+            destino.DataIngresso = origem.DataIngresso;
+            destino.StatusAssociado = origem.StatusAssociado;
+            destino.EnderecoId = origem.EnderecoId;
+            destino.EmpresaId = origem.EmpresaId;
+            destino.AnuidadeId = origem.AnuidadeId;
+            destino.PadrinhoId = origem.PadrinhoId;
+            destino.EquipeOrigemId = origem.EquipeOrigemId;
+            destino.EquipeAtualId = origem.EquipeAtualId;
+            destino.ClusterId = origem.ClusterId;
+            destino.AtuacaoEspecificaId = origem.AtuacaoEspecificaId;
+            destino.DataCadastro = destino.DataCadastro == default ? DateTime.UtcNow : destino.DataCadastro;
+
+            return destino;
         }
 
         private static void ValidarAnuidade(Anuidade anuidade)

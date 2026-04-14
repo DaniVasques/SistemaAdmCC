@@ -5,6 +5,7 @@ using AdmCC.Domain.RelatoriosAuditorias.Interfaces;
 
 namespace AdmCC.InfraData.Services
 {
+    // O fluxo publico atual do modulo usa a pontuacao mensal no agregado Equipe.
     public class EquipesService
     {
         private readonly IEquipeRepository _equipeRepository;
@@ -65,14 +66,14 @@ namespace AdmCC.InfraData.Services
             var existente = await _equipeRepository.GetByIdAsync(equipe.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Equipe nao encontrada para atualizacao.");
 
-            await ValidarEquipeAsync(equipe, isEdicao: true, cancellationToken);
+            var equipeAtualizada = AplicarDadosEquipe(equipe, existente);
 
-            equipe.OcorrenciasReuniao = existente.OcorrenciasReuniao;
+            await ValidarEquipeAsync(equipeAtualizada, isEdicao: true, cancellationToken);
 
-            await _equipeRepository.UpdateAsync(equipe, cancellationToken);
+            await _equipeRepository.UpdateAsync(equipeAtualizada, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return equipe;
+            return equipeAtualizada;
         }
 
         public async Task ExcluirEquipeAsync(Guid id, CancellationToken cancellationToken = default)
@@ -138,14 +139,49 @@ namespace AdmCC.InfraData.Services
             var existente = await _ocorrenciaReuniaoEquipeRepository.GetByIdAsync(ocorrenciaReuniaoEquipe.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Ocorrencia de reuniao nao encontrada para atualizacao.");
 
-            await ValidarOcorrenciaAsync(ocorrenciaReuniaoEquipe, isEdicao: true, cancellationToken);
+            var ocorrenciaAtualizada = AplicarDadosOcorrencia(ocorrenciaReuniaoEquipe, existente);
 
-            ocorrenciaReuniaoEquipe.Presencas = existente.Presencas;
+            await ValidarOcorrenciaAsync(ocorrenciaAtualizada, isEdicao: true, cancellationToken);
 
-            await _ocorrenciaReuniaoEquipeRepository.UpdateAsync(ocorrenciaReuniaoEquipe, cancellationToken);
+            await _ocorrenciaReuniaoEquipeRepository.UpdateAsync(ocorrenciaAtualizada, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return ocorrenciaReuniaoEquipe;
+            return ocorrenciaAtualizada;
+        }
+
+        public async Task<PresencaReuniaoEquipe> RegistrarPresencaAsync(
+            Guid ocorrenciaId,
+            PresencaReuniaoEquipe presencaReuniaoEquipe,
+            CancellationToken cancellationToken = default)
+        {
+            if (ocorrenciaId == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador da ocorrencia deve ser informado.", nameof(ocorrenciaId));
+            }
+
+            ArgumentNullException.ThrowIfNull(presencaReuniaoEquipe);
+
+            var ocorrencia = await _ocorrenciaReuniaoEquipeRepository.GetByIdAsync(ocorrenciaId, cancellationToken)
+                ?? throw new KeyNotFoundException("Ocorrencia de reuniao nao encontrada para registrar presenca.");
+
+            ValidarPresenca(ocorrencia, presencaReuniaoEquipe);
+
+            if (presencaReuniaoEquipe.Id == Guid.Empty)
+            {
+                presencaReuniaoEquipe.Id = Guid.NewGuid();
+            }
+
+            presencaReuniaoEquipe.OcorrenciaReuniaoEquipeId = ocorrencia.Id;
+            presencaReuniaoEquipe.DataRegistro = presencaReuniaoEquipe.DataRegistro == default
+                ? DateTime.UtcNow
+                : presencaReuniaoEquipe.DataRegistro;
+
+            ocorrencia.Presencas.Add(presencaReuniaoEquipe);
+
+            await _ocorrenciaReuniaoEquipeRepository.UpdateAsync(ocorrencia, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return presencaReuniaoEquipe;
         }
 
         public async Task MarcarOcorrenciaComoRealizadaAsync(Guid ocorrenciaId, CancellationToken cancellationToken = default)
@@ -258,6 +294,54 @@ namespace AdmCC.InfraData.Services
             {
                 throw new InvalidOperationException("Ja existe uma ocorrencia cadastrada para a equipe na data informada.");
             }
+        }
+
+        private static void ValidarPresenca(OcorrenciaReuniaoEquipe ocorrencia, PresencaReuniaoEquipe presencaReuniaoEquipe)
+        {
+            if (presencaReuniaoEquipe.AssociadoId == Guid.Empty)
+            {
+                throw new ArgumentException("O associado da presenca deve ser informado.", nameof(presencaReuniaoEquipe));
+            }
+
+            if (presencaReuniaoEquipe.DataRegistro != default && presencaReuniaoEquipe.DataRegistro > DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("A data de registro da presenca nao pode estar no futuro.");
+            }
+
+            var presencaJaRegistrada = ocorrencia.Presencas.Any(x => x.AssociadoId == presencaReuniaoEquipe.AssociadoId);
+            if (presencaJaRegistrada)
+            {
+                throw new InvalidOperationException("Ja existe presenca registrada para esse associado nesta ocorrencia.");
+            }
+        }
+
+        private static Equipe AplicarDadosEquipe(Equipe origem, Equipe destino)
+        {
+            destino.NomeEquipe = origem.NomeEquipe;
+            destino.DataInicioFormacao = origem.DataInicioFormacao;
+            destino.DataPrevisaoLancamento = origem.DataPrevisaoLancamento;
+            destino.DataEfetivaLancamento = origem.DataEfetivaLancamento;
+            destino.StatusEquipe = origem.StatusEquipe;
+            destino.DiaReuniaoEquipe = origem.DiaReuniaoEquipe;
+            destino.HorarioReuniao = origem.HorarioReuniao;
+            destino.ModeloReuniaoDeEquipe = origem.ModeloReuniaoDeEquipe;
+            destino.LocalReuniaoPresencialId = origem.LocalReuniaoPresencialId;
+            destino.LinkReuniaoOnline = origem.LinkReuniaoOnline;
+            destino.NumeroComponentesAtivos = origem.NumeroComponentesAtivos;
+            destino.PontuacaoMensalAtual = origem.PontuacaoMensalAtual;
+
+            return destino;
+        }
+
+        private static OcorrenciaReuniaoEquipe AplicarDadosOcorrencia(OcorrenciaReuniaoEquipe origem, OcorrenciaReuniaoEquipe destino)
+        {
+            destino.EquipeId = origem.EquipeId;
+            destino.DataReuniao = origem.DataReuniao;
+            destino.NumeroOcorrenciaNoMes = origem.NumeroOcorrenciaNoMes;
+            destino.EhPresencial = origem.EhPresencial;
+            destino.Realizada = origem.Realizada;
+
+            return destino;
         }
     }
 }

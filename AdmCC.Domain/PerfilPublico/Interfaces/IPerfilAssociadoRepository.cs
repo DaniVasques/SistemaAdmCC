@@ -8,7 +8,9 @@ namespace AdmCC.Domain.PerfilPublico.Interfaces
     {
         System.Threading.Tasks.Task<AdmCC.Domain.PerfilPublico.Entities.PerfilAssociado?> GetByIdAsync(Guid id, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.Task<AdmCC.Domain.PerfilPublico.Entities.PerfilAssociado?> GetByAssociadoIdAsync(Guid associadoId, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyCollection<AdmCC.Domain.PerfilPublico.Entities.PerfilAssociado>> GetAllAsync(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.Task AddAsync(AdmCC.Domain.PerfilPublico.Entities.PerfilAssociado perfilAssociado, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.Task UpdateAsync(AdmCC.Domain.PerfilPublico.Entities.PerfilAssociado perfilAssociado, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.Task DeleteAsync(Guid id, System.Threading.CancellationToken cancellationToken = default);
     }
 }

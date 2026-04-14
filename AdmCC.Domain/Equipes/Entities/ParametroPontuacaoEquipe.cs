@@ -4,6 +4,7 @@ using System.Text;
 
 namespace AdmCC.Domain.Equipes.Entities
 {
+    // Configuracao reservada para calibracao futura da pontuacao mensal da equipe.
     public class ParametroPontuacaoEquipe
     {
         public Guid Id { get; set; }

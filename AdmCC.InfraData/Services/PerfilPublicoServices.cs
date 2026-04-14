@@ -32,6 +32,11 @@ namespace AdmCC.InfraData.Services
             return _perfilAssociadoRepository.GetByAssociadoIdAsync(associadoId, cancellationToken);
         }
 
+        public Task<IReadOnlyCollection<PerfilAssociado>> ListarPerfisAsync(CancellationToken cancellationToken = default)
+        {
+            return _perfilAssociadoRepository.GetAllAsync(cancellationToken);
+        }
+
         public async Task<PerfilAssociado> CriarPerfilAsync(PerfilAssociado perfilAssociado, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(perfilAssociado);
@@ -61,21 +66,97 @@ namespace AdmCC.InfraData.Services
             var existente = await _perfilAssociadoRepository.GetByIdAsync(perfilAssociado.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Perfil publico nao encontrado para atualizacao.");
 
-            await ValidarPerfilAsync(perfilAssociado, isEdicao: true, cancellationToken);
+            var perfilAtualizado = AplicarDadosPerfil(perfilAssociado, existente);
 
-            perfilAssociado.Midias = perfilAssociado.Midias
+            await ValidarPerfilAsync(perfilAtualizado, isEdicao: true, cancellationToken);
+
+            perfilAtualizado.Midias = perfilAtualizado.Midias
                 .OrderBy(x => x.OrdemExibicao)
                 .ToList();
 
-            if (!perfilAssociado.Midias.Any())
+            if (!perfilAtualizado.Midias.Any())
             {
-                perfilAssociado.Midias = existente.Midias;
+                perfilAtualizado.Midias = existente.Midias;
             }
 
-            await _perfilAssociadoRepository.UpdateAsync(perfilAssociado, cancellationToken);
+            await _perfilAssociadoRepository.UpdateAsync(perfilAtualizado, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return perfilAssociado;
+            return perfilAtualizado;
+        }
+
+        public async Task ExcluirPerfilAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do perfil deve ser informado.", nameof(id));
+            }
+
+            var perfil = await _perfilAssociadoRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new KeyNotFoundException("Perfil publico nao encontrado para exclusao.");
+
+            if (perfil.PerfilPublicado)
+            {
+                throw new InvalidOperationException("Nao e permitido excluir um perfil publicado.");
+            }
+
+            await _perfilAssociadoRepository.DeleteAsync(id, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<MidiaAssociado> AdicionarMidiaAsync(Guid perfilId, MidiaAssociado midiaAssociado, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(midiaAssociado);
+
+            var perfil = await ObterPerfilExistenteAsync(perfilId, cancellationToken);
+
+            if (midiaAssociado.Id == Guid.Empty)
+            {
+                midiaAssociado.Id = Guid.NewGuid();
+            }
+
+            midiaAssociado.PerfilAssociadoId = perfil.Id;
+            perfil.Midias.Add(midiaAssociado);
+
+            await ValidarPerfilAsync(perfil, isEdicao: true, cancellationToken);
+
+            await _perfilAssociadoRepository.UpdateAsync(perfil, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return midiaAssociado;
+        }
+
+        public async Task<MidiaAssociado> AtualizarMidiaAsync(Guid perfilId, Guid midiaId, MidiaAssociado midiaAssociado, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(midiaAssociado);
+
+            var perfil = await ObterPerfilExistenteAsync(perfilId, cancellationToken);
+            var midia = perfil.Midias.FirstOrDefault(x => x.Id == midiaId)
+                ?? throw new KeyNotFoundException("Midia nao encontrada para atualizacao.");
+
+            midia.NomeMidia = midiaAssociado.NomeMidia;
+            midia.Url = midiaAssociado.Url;
+            midia.OrdemExibicao = midiaAssociado.OrdemExibicao;
+            midia.Ativa = midiaAssociado.Ativa;
+
+            await ValidarPerfilAsync(perfil, isEdicao: true, cancellationToken);
+
+            await _perfilAssociadoRepository.UpdateAsync(perfil, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return midia;
+        }
+
+        public async Task RemoverMidiaAsync(Guid perfilId, Guid midiaId, CancellationToken cancellationToken = default)
+        {
+            var perfil = await ObterPerfilExistenteAsync(perfilId, cancellationToken);
+            var midia = perfil.Midias.FirstOrDefault(x => x.Id == midiaId)
+                ?? throw new KeyNotFoundException("Midia nao encontrada para exclusao.");
+
+            perfil.Midias.Remove(midia);
+
+            await _perfilAssociadoRepository.UpdateAsync(perfil, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task PublicarPerfilAsync(Guid id, CancellationToken cancellationToken = default)
@@ -147,6 +228,31 @@ namespace AdmCC.InfraData.Services
             }
 
             return Task.CompletedTask;
+        }
+
+        private async Task<PerfilAssociado> ObterPerfilExistenteAsync(Guid perfilId, CancellationToken cancellationToken)
+        {
+            if (perfilId == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do perfil deve ser informado.", nameof(perfilId));
+            }
+
+            return await _perfilAssociadoRepository.GetByIdAsync(perfilId, cancellationToken)
+                ?? throw new KeyNotFoundException("Perfil publico nao encontrado.");
+        }
+
+        private static PerfilAssociado AplicarDadosPerfil(PerfilAssociado origem, PerfilAssociado destino)
+        {
+            destino.AssociadoId = origem.AssociadoId;
+            destino.FotoProfissionalUrl = origem.FotoProfissionalUrl;
+            destino.DescricaoProfissional = origem.DescricaoProfissional;
+            destino.NomeEmpresaExibicao = origem.NomeEmpresaExibicao;
+            destino.LogomarcaEmpresaUrl = origem.LogomarcaEmpresaUrl;
+            destino.Site = origem.Site;
+            destino.EmailPublico = origem.EmailPublico;
+            destino.PerfilPublicado = origem.PerfilPublicado;
+            destino.Midias = origem.Midias;
+            return destino;
         }
     }
 }

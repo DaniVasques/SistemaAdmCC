@@ -1,28 +1,16 @@
-using AdmCC.InfraData.Contexts;
-using Microsoft.EntityFrameworkCore;
+using AdmCC.Api.Configurations;
+using AdmCC.InfraData.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
+var connectionString = builder.Configuration.GetConnectionString("AdmCCConnection")
+    ?? throw new InvalidOperationException("A connection string 'AdmCCConnection' nao foi configurada.");
 
-// Add services to the container.
-
-builder.Services.AddControllers();
-builder.Services.AddDbContext<AdmCCContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("AdmCCConnection"),
-        sqlServerOptions =>
-        {
-            sqlServerOptions.MigrationsAssembly(typeof(AdmCCContext).Assembly.FullName);
-        }));
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddApiPresentation();
+builder.Services.AddAdmCCInfrastructure(connectionString);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseApiDocumentation();
 
 app.UseAuthorization();
 

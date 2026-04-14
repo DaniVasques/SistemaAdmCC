@@ -4,6 +4,7 @@ using AdmCC.Domain.RelatoriosAuditorias.Interfaces;
 
 namespace AdmCC.InfraData.Services
 {
+    // O escopo publico atual do modulo cobre catalogos estrategicos.
     public class EstrategiaService
     {
         private readonly IClusterRepository _clusterRepository;

@@ -85,16 +85,14 @@ namespace AdmCC.InfraData.Services
             var existente = await _conexaoEstrategicaRepository.GetByIdAsync(conexaoEstrategica.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Conexao estrategica nao encontrada para atualizacao.");
 
-            await ValidarConexaoAsync(conexaoEstrategica, cancellationToken);
+            var conexaoAtualizada = AplicarDadosConexao(conexaoEstrategica, existente);
 
-            conexaoEstrategica.DataEnvio = existente.DataEnvio == default
-                ? DateTime.UtcNow
-                : existente.DataEnvio;
+            await ValidarConexaoAsync(conexaoAtualizada, cancellationToken);
 
-            await _conexaoEstrategicaRepository.UpdateAsync(conexaoEstrategica, cancellationToken);
+            await _conexaoEstrategicaRepository.UpdateAsync(conexaoAtualizada, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return conexaoEstrategica;
+            return conexaoAtualizada;
         }
 
         public async Task AtualizarStatusConexaoAsync(Guid id, StatusConexao statusConexao, CancellationToken cancellationToken = default)
@@ -110,6 +108,53 @@ namespace AdmCC.InfraData.Services
             conexao.StatusConexao = statusConexao;
             await _conexaoEstrategicaRepository.UpdateAsync(conexao, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<NegocioRecebidoValidacao> ValidarNegocioRecebidoAsync(
+            Guid conexaoId,
+            NegocioRecebidoValidacao validacao,
+            CancellationToken cancellationToken = default)
+        {
+            if (conexaoId == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador da conexao deve ser informado.", nameof(conexaoId));
+            }
+
+            ArgumentNullException.ThrowIfNull(validacao);
+
+            var conexao = await _conexaoEstrategicaRepository.GetByIdAsync(conexaoId, cancellationToken)
+                ?? throw new KeyNotFoundException("Conexao estrategica nao encontrada para validacao.");
+
+            ValidarNegocioRecebido(validacao, conexao.AssociadoDestinoId);
+
+            var validacaoAtual = conexao.ValidacaoRecebimento;
+            if (validacaoAtual is null)
+            {
+                validacaoAtual = new NegocioRecebidoValidacao
+                {
+                    Id = validacao.Id == Guid.Empty ? Guid.NewGuid() : validacao.Id,
+                    ConexaoEstrategicaId = conexao.Id
+                };
+
+                conexao.ValidacaoRecebimento = validacaoAtual;
+            }
+
+            validacaoAtual.AssociadoReceptorId = validacao.AssociadoReceptorId;
+            validacaoAtual.StatusConexao = validacao.StatusConexao;
+            validacaoAtual.MotivoNegocioNaoFechado = validacao.MotivoNegocioNaoFechado;
+            validacaoAtual.ValorNegocioFechado = validacao.ValorNegocioFechado;
+            validacaoAtual.DataValidacao = validacao.DataValidacao == default ? DateTime.UtcNow : validacao.DataValidacao;
+            validacaoAtual.PrazoEstourado = validacao.PrazoEstourado;
+            validacaoAtual.DataPrazoEstourado = validacao.PrazoEstourado
+                ? validacao.DataPrazoEstourado ?? DateTime.UtcNow
+                : null;
+
+            conexao.StatusConexao = validacao.StatusConexao;
+
+            await _conexaoEstrategicaRepository.UpdateAsync(conexao, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return validacaoAtual;
         }
 
         public async Task ExcluirConexaoAsync(Guid id, CancellationToken cancellationToken = default)
@@ -185,16 +230,14 @@ namespace AdmCC.InfraData.Services
             var existente = await _parceriaAssociadoRepository.GetByIdAsync(parceriaAssociado.Id, cancellationToken)
                 ?? throw new KeyNotFoundException("Parceria nao encontrada para atualizacao.");
 
-            await ValidarParceriaAsync(parceriaAssociado, isEdicao: true, cancellationToken);
+            var parceriaAtualizada = AplicarDadosParceria(parceriaAssociado, existente);
 
-            parceriaAssociado.DataParceria = existente.DataParceria == default
-                ? DateTime.UtcNow
-                : existente.DataParceria;
+            await ValidarParceriaAsync(parceriaAtualizada, isEdicao: true, cancellationToken);
 
-            await _parceriaAssociadoRepository.UpdateAsync(parceriaAssociado, cancellationToken);
+            await _parceriaAssociadoRepository.UpdateAsync(parceriaAtualizada, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return parceriaAssociado;
+            return parceriaAtualizada;
         }
 
         public async Task EncerrarParceriaAsync(Guid id, CancellationToken cancellationToken = default)
@@ -279,6 +322,71 @@ namespace AdmCC.InfraData.Services
             {
                 throw new InvalidOperationException("Ja existe uma parceria ativa entre os associados informados.");
             }
+        }
+
+        private static void ValidarNegocioRecebido(NegocioRecebidoValidacao validacao, Guid associadoDestinoId)
+        {
+            if (validacao.AssociadoReceptorId == Guid.Empty)
+            {
+                throw new ArgumentException("O associado receptor deve ser informado.", nameof(validacao));
+            }
+
+            if (validacao.AssociadoReceptorId != associadoDestinoId)
+            {
+                throw new InvalidOperationException("A validacao deve ser registrada pelo associado de destino da conexao.");
+            }
+
+            if (!Enum.IsDefined(validacao.StatusConexao))
+            {
+                throw new ArgumentException("O status da conexao informado para validacao e invalido.", nameof(validacao));
+            }
+
+            if (validacao.StatusConexao == StatusConexao.Fechada && (!validacao.ValorNegocioFechado.HasValue || validacao.ValorNegocioFechado.Value <= 0))
+            {
+                throw new InvalidOperationException("Negocios fechados devem informar um valor positivo.");
+            }
+
+            if (validacao.StatusConexao == StatusConexao.NegocioNaoFechado && !validacao.MotivoNegocioNaoFechado.HasValue)
+            {
+                throw new InvalidOperationException("Negocios nao fechados devem informar o motivo.");
+            }
+
+            if (validacao.DataValidacao.HasValue && validacao.DataValidacao.Value > DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("A data de validacao nao pode estar no futuro.");
+            }
+
+            if (validacao.PrazoEstourado && validacao.DataPrazoEstourado.HasValue && validacao.DataPrazoEstourado.Value > DateTime.UtcNow)
+            {
+                throw new InvalidOperationException("A data de prazo estourado nao pode estar no futuro.");
+            }
+        }
+
+        private static ConexaoEstrategica AplicarDadosConexao(ConexaoEstrategica origem, ConexaoEstrategica destino)
+        {
+            destino.AssociadoOrigemId = origem.AssociadoOrigemId;
+            destino.AssociadoDestinoId = origem.AssociadoDestinoId;
+            destino.NomeContatoOuEmpresa = origem.NomeContatoOuEmpresa;
+            destino.TelefoneContato = origem.TelefoneContato;
+            destino.Complemento = origem.Complemento;
+            destino.TipoDeConexao = origem.TipoDeConexao;
+            destino.StatusConexao = origem.StatusConexao;
+            destino.Excluida = origem.Excluida;
+            destino.DataEnvio = destino.DataEnvio == default ? DateTime.UtcNow : destino.DataEnvio;
+
+            return destino;
+        }
+
+        private static ParceriaAssociado AplicarDadosParceria(ParceriaAssociado origem, ParceriaAssociado destino)
+        {
+            destino.AssociadoOrigemId = origem.AssociadoOrigemId;
+            destino.AssociadoDestinoId = origem.AssociadoDestinoId;
+            destino.Ativa = origem.Ativa;
+            destino.DataParceria = destino.DataParceria == default
+                ? (origem.DataParceria == default ? DateTime.UtcNow : origem.DataParceria)
+                : destino.DataParceria;
+
+            return destino;
         }
     }
 }

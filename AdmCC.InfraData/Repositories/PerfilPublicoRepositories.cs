@@ -26,6 +26,13 @@ namespace AdmCC.InfraData.Repositories
                 .FirstOrDefaultAsync(x => x.AssociadoId == associadoId, cancellationToken);
         }
 
+        public async Task<IReadOnlyCollection<PerfilAssociado>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await BuildPerfilQuery(trackChanges: false)
+                .OrderBy(x => x.AssociadoId)
+                .ToListAsync(cancellationToken);
+        }
+
         public Task AddAsync(PerfilAssociado perfilAssociado, CancellationToken cancellationToken = default)
         {
             return _context.PerfisAssociados.AddAsync(perfilAssociado, cancellationToken).AsTask();
@@ -35,6 +42,19 @@ namespace AdmCC.InfraData.Repositories
         {
             _context.PerfisAssociados.Update(perfilAssociado);
             return Task.CompletedTask;
+        }
+
+        public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var perfil = await _context.PerfisAssociados
+                .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+            if (perfil is null)
+            {
+                return;
+            }
+
+            _context.PerfisAssociados.Remove(perfil);
         }
 
         private IQueryable<PerfilAssociado> BuildPerfilQuery(bool trackChanges)

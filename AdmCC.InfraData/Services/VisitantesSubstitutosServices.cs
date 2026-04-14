@@ -18,6 +18,21 @@ namespace AdmCC.InfraData.Services
             _unitOfWork = unitOfWork;
         }
 
+        public Task<IReadOnlyCollection<VisitanteExterno>> ListarVisitantesExternosAsync(CancellationToken cancellationToken = default)
+        {
+            return _visitanteRepository.GetVisitantesExternosAsync(cancellationToken);
+        }
+
+        public Task<VisitanteExterno?> ObterVisitanteExternoPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do visitante externo deve ser informado.", nameof(id));
+            }
+
+            return _visitanteRepository.GetVisitanteExternoByIdAsync(id, cancellationToken);
+        }
+
         public Task<IReadOnlyCollection<VisitanteExterno>> ListarVisitantesExternosPorOcorrenciaAsync(Guid ocorrenciaReuniaoEquipeId, CancellationToken cancellationToken = default)
         {
             if (ocorrenciaReuniaoEquipeId == Guid.Empty)
@@ -26,6 +41,11 @@ namespace AdmCC.InfraData.Services
             }
 
             return _visitanteRepository.GetVisitantesExternosByOcorrenciaIdAsync(ocorrenciaReuniaoEquipeId, cancellationToken);
+        }
+
+        public async Task<VisitanteExterno> CriarVisitanteExternoAsync(VisitanteExterno visitanteExterno, CancellationToken cancellationToken = default)
+        {
+            return await RegistrarVisitanteExternoAsync(visitanteExterno, cancellationToken);
         }
 
         public Task<IReadOnlyCollection<VisitaInterna>> ListarVisitasInternasPorOcorrenciaAsync(Guid ocorrenciaReuniaoEquipeId, CancellationToken cancellationToken = default)
@@ -38,6 +58,26 @@ namespace AdmCC.InfraData.Services
             return _visitanteRepository.GetVisitasInternasByOcorrenciaIdAsync(ocorrenciaReuniaoEquipeId, cancellationToken);
         }
 
+        public Task<IReadOnlyCollection<VisitaInterna>> ListarVisitasInternasAsync(CancellationToken cancellationToken = default)
+        {
+            return _visitanteRepository.GetVisitasInternasAsync(cancellationToken);
+        }
+
+        public Task<VisitaInterna?> ObterVisitaInternaPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador da visita interna deve ser informado.", nameof(id));
+            }
+
+            return _visitanteRepository.GetVisitaInternaByIdAsync(id, cancellationToken);
+        }
+
+        public async Task<VisitaInterna> CriarVisitaInternaAsync(VisitaInterna visitaInterna, CancellationToken cancellationToken = default)
+        {
+            return await RegistrarVisitaInternaAsync(visitaInterna, cancellationToken);
+        }
+
         public Task<IReadOnlyCollection<SubstitutoAssociado>> ListarSubstitutosAssociadosPorOcorrenciaAsync(Guid ocorrenciaReuniaoEquipeId, CancellationToken cancellationToken = default)
         {
             if (ocorrenciaReuniaoEquipeId == Guid.Empty)
@@ -48,6 +88,26 @@ namespace AdmCC.InfraData.Services
             return _visitanteRepository.GetSubstitutosAssociadosByOcorrenciaIdAsync(ocorrenciaReuniaoEquipeId, cancellationToken);
         }
 
+        public Task<IReadOnlyCollection<SubstitutoAssociado>> ListarSubstitutosAssociadosAsync(CancellationToken cancellationToken = default)
+        {
+            return _visitanteRepository.GetSubstitutosAssociadosAsync(cancellationToken);
+        }
+
+        public Task<SubstitutoAssociado?> ObterSubstitutoAssociadoPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do substituto associado deve ser informado.", nameof(id));
+            }
+
+            return _visitanteRepository.GetSubstitutoAssociadoByIdAsync(id, cancellationToken);
+        }
+
+        public async Task<SubstitutoAssociado> CriarSubstitutoAssociadoAsync(SubstitutoAssociado substitutoAssociado, CancellationToken cancellationToken = default)
+        {
+            return await RegistrarSubstitutoAssociadoAsync(substitutoAssociado, cancellationToken);
+        }
+
         public Task<IReadOnlyCollection<SubstitutoExterno>> ListarSubstitutosExternosPorOcorrenciaAsync(Guid ocorrenciaReuniaoEquipeId, CancellationToken cancellationToken = default)
         {
             if (ocorrenciaReuniaoEquipeId == Guid.Empty)
@@ -56,6 +116,26 @@ namespace AdmCC.InfraData.Services
             }
 
             return _visitanteRepository.GetSubstitutosExternosByOcorrenciaIdAsync(ocorrenciaReuniaoEquipeId, cancellationToken);
+        }
+
+        public Task<IReadOnlyCollection<SubstitutoExterno>> ListarSubstitutosExternosAsync(CancellationToken cancellationToken = default)
+        {
+            return _visitanteRepository.GetSubstitutosExternosAsync(cancellationToken);
+        }
+
+        public Task<SubstitutoExterno?> ObterSubstitutoExternoPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do substituto externo deve ser informado.", nameof(id));
+            }
+
+            return _visitanteRepository.GetSubstitutoExternoByIdAsync(id, cancellationToken);
+        }
+
+        public async Task<SubstitutoExterno> CriarSubstitutoExternoAsync(SubstitutoExterno substitutoExterno, CancellationToken cancellationToken = default)
+        {
+            return await RegistrarSubstitutoExternoAsync(substitutoExterno, cancellationToken);
         }
 
         public async Task<VisitanteExterno> RegistrarVisitanteExternoAsync(VisitanteExterno visitanteExterno, CancellationToken cancellationToken = default)
@@ -80,6 +160,42 @@ namespace AdmCC.InfraData.Services
             return visitanteExterno;
         }
 
+        public async Task<VisitanteExterno> AtualizarVisitanteExternoAsync(VisitanteExterno visitanteExterno, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(visitanteExterno);
+
+            var existente = await _visitanteRepository.GetVisitanteExternoByIdAsync(visitanteExterno.Id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Visitante externo nao encontrado.");
+            }
+
+            AplicarDadosVisitanteExterno(existente, visitanteExterno);
+            ValidarVisitanteExterno(existente);
+
+            await _visitanteRepository.UpdateVisitanteExternoAsync(existente, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return existente;
+        }
+
+        public async Task ExcluirVisitanteExternoAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do visitante externo deve ser informado.", nameof(id));
+            }
+
+            var existente = await _visitanteRepository.GetVisitanteExternoByIdAsync(id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Visitante externo nao encontrado.");
+            }
+
+            await _visitanteRepository.DeleteVisitanteExternoAsync(id, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task<VisitaInterna> RegistrarVisitaInternaAsync(VisitaInterna visitaInterna, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(visitaInterna);
@@ -100,6 +216,42 @@ namespace AdmCC.InfraData.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return visitaInterna;
+        }
+
+        public async Task<VisitaInterna> AtualizarVisitaInternaAsync(VisitaInterna visitaInterna, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(visitaInterna);
+
+            var existente = await _visitanteRepository.GetVisitaInternaByIdAsync(visitaInterna.Id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Visita interna nao encontrada.");
+            }
+
+            AplicarDadosVisitaInterna(existente, visitaInterna);
+            ValidarVisitaInterna(existente);
+
+            await _visitanteRepository.UpdateVisitaInternaAsync(existente, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return existente;
+        }
+
+        public async Task ExcluirVisitaInternaAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador da visita interna deve ser informado.", nameof(id));
+            }
+
+            var existente = await _visitanteRepository.GetVisitaInternaByIdAsync(id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Visita interna nao encontrada.");
+            }
+
+            await _visitanteRepository.DeleteVisitaInternaAsync(id, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<SubstitutoAssociado> RegistrarSubstitutoAssociadoAsync(SubstitutoAssociado substitutoAssociado, CancellationToken cancellationToken = default)
@@ -124,6 +276,42 @@ namespace AdmCC.InfraData.Services
             return substitutoAssociado;
         }
 
+        public async Task<SubstitutoAssociado> AtualizarSubstitutoAssociadoAsync(SubstitutoAssociado substitutoAssociado, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(substitutoAssociado);
+
+            var existente = await _visitanteRepository.GetSubstitutoAssociadoByIdAsync(substitutoAssociado.Id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Substituto associado nao encontrado.");
+            }
+
+            AplicarDadosSubstitutoAssociado(existente, substitutoAssociado);
+            ValidarSubstitutoAssociado(existente);
+
+            await _visitanteRepository.UpdateSubstitutoAssociadoAsync(existente, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return existente;
+        }
+
+        public async Task ExcluirSubstitutoAssociadoAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do substituto associado deve ser informado.", nameof(id));
+            }
+
+            var existente = await _visitanteRepository.GetSubstitutoAssociadoByIdAsync(id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Substituto associado nao encontrado.");
+            }
+
+            await _visitanteRepository.DeleteSubstitutoAssociadoAsync(id, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task<SubstitutoExterno> RegistrarSubstitutoExternoAsync(SubstitutoExterno substitutoExterno, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(substitutoExterno);
@@ -146,6 +334,42 @@ namespace AdmCC.InfraData.Services
             return substitutoExterno;
         }
 
+        public async Task<SubstitutoExterno> AtualizarSubstitutoExternoAsync(SubstitutoExterno substitutoExterno, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(substitutoExterno);
+
+            var existente = await _visitanteRepository.GetSubstitutoExternoByIdAsync(substitutoExterno.Id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Substituto externo nao encontrado.");
+            }
+
+            AplicarDadosSubstitutoExterno(existente, substitutoExterno);
+            ValidarSubstitutoExterno(existente);
+
+            await _visitanteRepository.UpdateSubstitutoExternoAsync(existente, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return existente;
+        }
+
+        public async Task ExcluirSubstitutoExternoAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id == Guid.Empty)
+            {
+                throw new ArgumentException("O identificador do substituto externo deve ser informado.", nameof(id));
+            }
+
+            var existente = await _visitanteRepository.GetSubstitutoExternoByIdAsync(id, cancellationToken);
+            if (existente is null)
+            {
+                throw new KeyNotFoundException("Substituto externo nao encontrado.");
+            }
+
+            await _visitanteRepository.DeleteSubstitutoExternoAsync(id, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task AtualizarStatusValidacaoAsync(Guid registroId, string tipoRegistro, StatusValidacaoPresenca statusValidacaoPresenca, CancellationToken cancellationToken = default)
         {
             if (registroId == Guid.Empty)
@@ -160,6 +384,43 @@ namespace AdmCC.InfraData.Services
 
             await _visitanteRepository.AtualizarStatusValidacaoAsync(registroId, tipoRegistro, statusValidacaoPresenca, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        private static void AplicarDadosVisitanteExterno(VisitanteExterno destino, VisitanteExterno origem)
+        {
+            destino.OcorrenciaReuniaoEquipeId = origem.OcorrenciaReuniaoEquipeId;
+            destino.AssociadoResponsavelId = origem.AssociadoResponsavelId;
+            destino.TipoPessoa = origem.TipoPessoa;
+            destino.NomeCompleto = origem.NomeCompleto;
+            destino.TelefonePrincipal = origem.TelefonePrincipal;
+            destino.Email = origem.Email;
+            destino.Cpf = origem.Cpf;
+            destino.NomeEmpresa = origem.NomeEmpresa;
+        }
+
+        private static void AplicarDadosVisitaInterna(VisitaInterna destino, VisitaInterna origem)
+        {
+            destino.OcorrenciaReuniaoEquipeId = origem.OcorrenciaReuniaoEquipeId;
+            destino.AssociadoVisitanteId = origem.AssociadoVisitanteId;
+        }
+
+        private static void AplicarDadosSubstitutoAssociado(SubstitutoAssociado destino, SubstitutoAssociado origem)
+        {
+            destino.OcorrenciaReuniaoEquipeId = origem.OcorrenciaReuniaoEquipeId;
+            destino.AssociadoTitularId = origem.AssociadoTitularId;
+            destino.AssociadoSubstitutoId = origem.AssociadoSubstitutoId;
+        }
+
+        private static void AplicarDadosSubstitutoExterno(SubstitutoExterno destino, SubstitutoExterno origem)
+        {
+            destino.OcorrenciaReuniaoEquipeId = origem.OcorrenciaReuniaoEquipeId;
+            destino.AssociadoTitularId = origem.AssociadoTitularId;
+            destino.TipoPessoa = origem.TipoPessoa;
+            destino.NomeCompleto = origem.NomeCompleto;
+            destino.TelefonePrincipal = origem.TelefonePrincipal;
+            destino.Email = origem.Email;
+            destino.Cpf = origem.Cpf;
+            destino.NomeEmpresa = origem.NomeEmpresa;
         }
 
         private static void ValidarVisitanteExterno(VisitanteExterno visitanteExterno)
